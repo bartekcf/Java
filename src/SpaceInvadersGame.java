@@ -22,20 +22,48 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
     private Timer enemyMovementTimer;
     private Timer shootTimer;
 
+    private JPanel cards;
+    private JComboBox<String> shipSelection;
+    private CardLayout cardLayout;
+
+    private JButton leftButton;
+    private JButton rightButton;
+    private JButton shootButton;
+
     private String playerName;
     private int score;
     private int enemySpeed;
-    private int enemyLines;
-    private int enemiesPerLine;
     private boolean alternateControlsEnabled;
     private long startTime;
+
+    private int difficultyLevel;
 
 
     public SpaceInvadersGame() {
         setTitle("Space Invaders");
         setSize(BOARD_WIDTH, BOARD_HEIGHT);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
+
+        JMenuBar menuBar = new JMenuBar();
+        JMenu gameMenu = new JMenu("Game");
+        JMenuItem newGameItem = new JMenuItem("New Game");
+        JMenuItem exitItem = new JMenuItem("Exit");
+
+        newGameItem.addActionListener(e -> {
+            resetGame();
+            cardLayout.show(cards, "StartScreen");
+        });
+        exitItem.addActionListener(e -> System.exit(0));
+
+        gameMenu.add(newGameItem);
+        gameMenu.add(exitItem);
+
+        menuBar.add(gameMenu);
+
+        setJMenuBar(menuBar);
+
+        cardLayout = new CardLayout();
+        cards = new JPanel(cardLayout);
 
         // Game panel
         gamePanel = new JPanel();
@@ -54,10 +82,6 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
         scoreLabel = new JLabel("Score: 0");
         scorePanel.add(scoreLabel);
 
-        // Start button
-        startButton = new JButton("Start");
-        startButton.addActionListener(this);
-
         // Player label
         playerLabel = new JLabel();
         playerLabel.setSize(PLAYER_WIDTH, PLAYER_HEIGHT);
@@ -66,15 +90,86 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
 
         gamePanel.add(playerLabel);
 
-        add(gamePanel, BorderLayout.CENTER);
-        add(scorePanel, BorderLayout.NORTH);
-        add(startButton, BorderLayout.SOUTH);
+        leftButton = new JButton("<");
+        shootButton = new JButton("Strzal");
+        rightButton = new JButton(">");
+
+
+        // Zmieniamy rozmiar przycisków i przesuwamy je do widocznego obszaru.
+        leftButton.setBounds(310, BOARD_HEIGHT - 150, 45, 30);
+        rightButton.setBounds(435, BOARD_HEIGHT - 150, 45, 30);
+        shootButton.setBounds(360, BOARD_HEIGHT - 150, 70, 30);
+
+
+        rightButton.addActionListener(e -> movePlayerRight());
+        shootButton.addActionListener(e -> shoot());
+        leftButton.addActionListener(e -> movePlayerLeft());
+
+
+        rightButton.setVisible(false);
+        shootButton.setVisible(false);
+        leftButton.setVisible(false);
+
+
+        gamePanel.add(rightButton);
+        gamePanel.add(shootButton);
+        gamePanel.add(leftButton);
+
+
+
+        // Start panel
+        String[] difficulties = { "Easy", "Medium", "Hard" };
+        JComboBox<String> difficultySelection = new JComboBox<>(difficulties);
+        String[] controls = { "Keyboard", "Mouse" };
+        JComboBox<String> controlSelection = new JComboBox<>(controls);
+        BackgroundImage startPanel = new BackgroundImage("src/area.jpg");
+        startPanel.setLayout(new FlowLayout());
+        String[] ships = { "src/player.png", "src/player2.png", "src/player3.png" };
+        shipSelection = new JComboBox<>(ships);
+        startPanel.add(shipSelection);
+        startPanel.add(difficultySelection);
+        startPanel.add(controlSelection);
+
+        // Dodajemy wybór sterowania
+        startButton = new JButton("Start");
+        startButton.addActionListener(e -> {
+            String selectedShip = (String) shipSelection.getSelectedItem();
+            playerLabel.setIcon(new ImageIcon(selectedShip));
+
+            // Wybieramy rodzaj sterowania
+            String selectedControl = (String) controlSelection.getSelectedItem();
+            alternateControlsEnabled = "Mouse".equals(selectedControl);
+            leftButton.setVisible(alternateControlsEnabled);
+            rightButton.setVisible(alternateControlsEnabled);
+            shootButton.setVisible(alternateControlsEnabled);
+
+            // Ustawiamy poziom trudności
+            String selectedDifficulty = (String) difficultySelection.getSelectedItem();
+            if ("Easy".equals(selectedDifficulty)) {
+                difficultyLevel = 1;
+            } else if ("Medium".equals(selectedDifficulty)) {
+                difficultyLevel = 2;
+            } else if ("Hard".equals(selectedDifficulty)) {
+                difficultyLevel = 3;
+            }
+
+            cardLayout.show(cards, "GameScreen");
+            startGame();
+        });
+
+        startPanel.add(startButton);
+
+        cards.add(startPanel, "StartScreen");
+        cards.add(gamePanel, "GameScreen");
+
+        add(cards);
+        add(scorePanel, BorderLayout.NORTH);;
 
         enemyLabels = new ArrayList<>();
-
         enemyMovementTimer = new Timer(500, this);
         shootTimer = new Timer(1000, this);
     }
+
 
     private void startGame() {
         Random rand = new Random();
@@ -83,9 +178,6 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
         scoreLabel.setText("Wynik: " + score);
         startTime = System.currentTimeMillis();
 
-        enemySpeed = rand.nextInt(7) + 2;
-        enemyLines = 3;
-        enemiesPerLine = 6;
         alternateControlsEnabled = false;
 
         createEnemies();
@@ -99,22 +191,26 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
     }
 
     private void createEnemies() {
-        int totalEnemies = 20;
+        int totalEnemies = 10 * difficultyLevel;
+        int lines = difficultyLevel; // Ilość linii wrogów
+        int enemiesPerLine = totalEnemies / lines;
         int initialY = -ENEMY_HEIGHT - 10;
-        int enemySpacing = (BOARD_WIDTH - totalEnemies * ENEMY_WIDTH) / (totalEnemies - 1);
+        int enemySpacing = (BOARD_WIDTH - enemiesPerLine * ENEMY_WIDTH) / (enemiesPerLine + 1);
         Random random = new Random();
 
-        for (int i = 0; i < totalEnemies; i++) {
-            JLabel enemyLabel = new JLabel();
-            enemyLabel.setSize(ENEMY_WIDTH, ENEMY_HEIGHT);
-            enemyLabel.setIcon(new ImageIcon("src/enemy.png"));
+        for (int i = 0; i < lines; i++) {
+            for (int j = 0; j < enemiesPerLine; j++) {
+                JLabel enemyLabel = new JLabel();
+                enemyLabel.setSize(ENEMY_WIDTH, ENEMY_HEIGHT);
+                enemyLabel.setIcon(new ImageIcon("src/enemy.png"));
 
-            int enemyX = i * (ENEMY_WIDTH + enemySpacing);
-            int enemyY = initialY - random.nextInt(200);
+                int enemyX = j * (ENEMY_WIDTH + enemySpacing);
+                int enemyY = initialY - (i * ENEMY_HEIGHT * 2) - random.nextInt(200);
 
-            enemyLabel.setLocation(enemyX, enemyY);
-            gamePanel.add(enemyLabel);
-            enemyLabels.add(enemyLabel);
+                enemyLabel.setLocation(enemyX, enemyY);
+                gamePanel.add(enemyLabel);
+                enemyLabels.add(enemyLabel);
+            }
         }
     }
 
@@ -163,46 +259,44 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
         bulletLabel.setLocation(playerX + PLAYER_WIDTH / 2, playerY);
         gamePanel.add(bulletLabel);
 
-        Timer bulletTimer = new Timer(20, new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                int bulletY = bulletLabel.getY();
-                bulletLabel.setLocation(bulletLabel.getX(), bulletY - 5);
+        Timer bulletTimer = new Timer(20, e -> {
+            int bulletY = bulletLabel.getY();
+            bulletLabel.setLocation(bulletLabel.getX(), bulletY - 5);
 
-                if (checkCollision(bulletLabel)) {
-                    ((Timer) e.getSource()).stop();
-                    gamePanel.remove(bulletLabel);
+            if (checkCollision(bulletLabel)) {
+                ((Timer) e.getSource()).stop();
+                gamePanel.remove(bulletLabel);
 
-                    // Sprawdzamy, czy wszyscy przeciwnicy zostali pokonani po strzale
-                    if (checkAllEnemiesDown()) {
+                // Sprawdzamy, czy wszyscy przeciwnicy zostali pokonani po strzale
+                if (checkAllEnemiesDown()) {
 
-                        long endTime = System.currentTimeMillis();
-                        long gameTime = (endTime - startTime) / 1000;
-                        enemyMovementTimer.stop();
-                        shootTimer.stop();
-                        JOptionPane.showMessageDialog(gamePanel,
-                                "Gratulacje, " + playerName + "! wygrałeś! \nCzas gry: " + gameTime + " sekund");
+                    long endTime = System.currentTimeMillis();
+                    long gameTime = (endTime - startTime) / 1000;
+                    enemyMovementTimer.stop();
+                    shootTimer.stop();
+                    JOptionPane.showMessageDialog(gamePanel,
+                            "Gratulacje, " + playerName + "! wygrałeś! \nCzas gry: " + gameTime + " sekund");
 
-                        // Pytanie, czy gracz chce zagrać ponownie
-                        int playAgain = JOptionPane.showConfirmDialog(
-                                gamePanel,
-                                "Czy chcesz zagrać ponownie?",
-                                "Koniec gry",
-                                JOptionPane.YES_NO_OPTION);
+                    // Pytanie, czy gracz chce zagrać ponownie
+                    int playAgain = JOptionPane.showConfirmDialog(
+                            gamePanel,
+                            "Czy chcesz zagrać ponownie?",
+                            "Koniec gry",
+                            JOptionPane.YES_NO_OPTION);
 
-                        if (playAgain == JOptionPane.YES_OPTION) {
-                            // Resetujemy grę
-                            resetGame();
-                        } else {
-                            // Zamykamy program
-                            System.exit(0);
-                        }
+                    if (playAgain == JOptionPane.YES_OPTION) {
+                        // Resetujemy grę
+                        resetGame();
+                    } else {
+                        // Zamykamy program
+                        System.exit(0);
                     }
                 }
+            }
 
-                if (bulletY < 0) {
-                    ((Timer) e.getSource()).stop();
-                    gamePanel.remove(bulletLabel);
-                }
+            if (bulletY < 0) {
+                ((Timer) e.getSource()).stop();
+                gamePanel.remove(bulletLabel);
             }
         });
 
@@ -234,21 +328,30 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
 
     private void moveEnemies() {
         int playerX = playerLabel.getX();
+        boolean dropDown = false;
+
+        // Sprawdź, czy którykolwiek wróg dotarł do granicy ekranu
+        for (JLabel enemyLabel : enemyLabels) {
+            int enemyX = enemyLabel.getX();
+            if (enemyX <= 0 || enemyX >= BOARD_WIDTH - ENEMY_WIDTH) {
+                dropDown = true;
+                break;
+            }
+        }
 
         for (JLabel enemyLabel : enemyLabels) {
             int enemyX = enemyLabel.getX();
             int enemyY = enemyLabel.getY();
 
             if (enemyLabel.isVisible()) {
-                if (enemyY < playerLabel.getY()) {
-                    enemyY += enemySpeed;  // Poruszanie w dół
+                if (dropDown) {
+                    enemyY += 10 * difficultyLevel;
+                    enemySpeed *= -1;
+                } else {
+                    enemyX += enemySpeed;
                 }
 
                 enemyLabel.setLocation(enemyX, enemyY);
-
-                if (enemyY >= playerLabel.getY()) {
-                    endGame();
-                }
             }
         }
     }
@@ -258,7 +361,7 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
         shootTimer.stop();
         JOptionPane.showMessageDialog(this, "Przegrałeś! Twój wynik: " + score);
 
-        String playerName = JOptionPane.showInputDialog("Enter your name:");
+        String playerName = JOptionPane.showInputDialog("Podaj swój nickname:");
         // Save score to file and update top 10 list
 
         int choice = JOptionPane.showConfirmDialog(this, "Do you want to play again?");
@@ -272,26 +375,29 @@ public class SpaceInvadersGame extends JFrame implements ActionListener {
     private void resetGame() {
         gamePanel.removeAll();
         enemyLabels.clear();
+        gamePanel.add(playerLabel);
+        gamePanel.add(leftButton);
+        gamePanel.add(rightButton);
+        gamePanel.add(shootButton);
         startGame();
     }
 
 
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == startButton) {
+            String selectedShip = (String) shipSelection.getSelectedItem();
+            playerLabel.setIcon(new ImageIcon(selectedShip));
+            cardLayout.show(cards, "GameScreen");
             startGame();
         } else if (e.getSource() == enemyMovementTimer) {
             moveEnemies();
         }
     }
 
-
-
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                SpaceInvadersGame game = new SpaceInvadersGame();
-                game.setVisible(true);
-            }
+        SwingUtilities.invokeLater(() -> {
+            SpaceInvadersGame game = new SpaceInvadersGame();
+            game.setVisible(true);
         });
     }
 }
