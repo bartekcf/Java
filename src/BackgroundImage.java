@@ -6,7 +6,7 @@ import java.io.File;
 import java.io.IOException;
 
 class BackgroundImage extends JPanel {
-    private BufferedImage image;
+    public BufferedImage image;
 
     public BackgroundImage(String imagepath) {
         try {

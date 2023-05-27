@@ -1,0 +1,4 @@
+1. Aby rozpocząć gre musisz wybrać statek, poziom trudności oraz rodzaj sterowania.
+2. Aby wygrać gre musisz pokonać liczbę przeciwników zależną od poziomu.
+3. Aby trafić na listę TOP 10 najlepszych graczy musisz pokonać jak największa ilość przeciwników, nie musisz wygrać gry.
+4. Życzę udanej zabawy:)
